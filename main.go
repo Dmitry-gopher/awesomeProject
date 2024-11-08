@@ -18,7 +18,7 @@ func replaceLinks(mes string) string {
 			}
 		}
 		if found { // нашли http://
-			k := i + len(s) // текст ссылки
+			k := i + len(s) // текст ссылку
 			for k < len(buffer) && buffer[k] != ' ' {
 				buffer[k] = '*'
 				k++
