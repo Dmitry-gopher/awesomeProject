@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
 
 func replaceLinks(mes string) string {
 	buffer := []byte(mes)  // буфер - байтовый срез
@@ -31,8 +35,13 @@ func replaceLinks(mes string) string {
 
 func main() {
 
-	text := "Hello, its my page: http://localhost123.com See you"
-	text1 := replaceLinks(text)
-	fmt.Println(text1)
+	fmt.Println("Введите текст сообщения:") // Запрос ввода
+	reader := bufio.NewReader(os.Stdin)
+	text, _ := reader.ReadString('\n') // считывание строки
+
+	// Обработка и вывод результата
+	textWithoutLinks := replaceLinks(text)
+	fmt.Println("Результат:")
+	fmt.Println(textWithoutLinks)
 
 }
