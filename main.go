@@ -1,47 +1,28 @@
 package main
 
 import (
-	"bufio"
+	"awesomeProject/service"
 	"fmt"
 	"os"
 )
 
-func replaceLinks(mes string) string {
-	buffer := []byte(mes)  // буфер - байтовый срез
-	s := []byte("http://") // откуда маскировать
-
-	found := false // поиск начала ссылки
-	i := 0         // индекс, с которого начнётся замена
-	for i < len(buffer) {
-		for j := 0; j < len(s); j++ {
-			if buffer[j+i] == s[j] {
-				found = true
-			} else {
-				found = false
-				break
-			}
-		}
-		if found { // нашли http://
-			k := i + len(s) // текст ссылку
-			for k < len(buffer) && buffer[k] != ' ' {
-				buffer[k] = '*'
-				k++
-			}
-		}
-		i++
-	}
-	return string(buffer)
-}
-
 func main() {
+	args := os.Args[1:] // получение аргументов из терминала
+	inputFile := args[0]
+	outputFile := "output.txt" // значение по умолчанию
 
-	fmt.Println("Введите текст сообщения:") // Запрос ввода
-	reader := bufio.NewReader(os.Stdin)
-	text, _ := reader.ReadString('\n') // считывание строки
+	if len(args) > 1 {
+		outputFile = args[1]
+	}
 
-	// Обработка и вывод результата
-	textWithoutLinks := replaceLinks(text)
-	fmt.Println("Результат:")
-	fmt.Println(textWithoutLinks)
+	producer := service.NewFileProducer(inputFile)
+	presenter := service.NewFilePresenter(outputFile)
+	service := service.NewService(producer, presenter)
 
+	if err := service.Run(); err != nil {
+		fmt.Println("Ошибка:", err)
+		return
+	}
+
+	fmt.Println("Данные успешно обработаны")
 }
