@@ -1,0 +1,3 @@
+Hello, this is a link: http://*********** to test.
+Another line without a link.
+And one more link: http://******************
