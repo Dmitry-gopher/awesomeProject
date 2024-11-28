@@ -1,12 +1,7 @@
 package service
 
-import (
-	"os"
-)
+import "os"
 
-type Presenter interface {
-	Present([]string) error
-}
 type FilePresenter struct {
 	filePath string
 }

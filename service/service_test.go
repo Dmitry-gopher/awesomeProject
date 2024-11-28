@@ -35,7 +35,7 @@ func TestService_Run_Success(t *testing.T) {
 	mockPres.On("Present", []string{"http://***********", "normal text"}).Return(nil)
 	srv := NewService(mockProd, mockPres)
 
-	// тест самого сервиса
+	// Тест самого сервиса
 	err := srv.Run()
 	require.NoError(t, err)
 	mockProd.AssertCalled(t, "Produce")
@@ -46,7 +46,7 @@ func TestService_Run_ProducerError(t *testing.T) {
 	mockProd := new(MockProducer)
 	mockPres := new(MockPresenter)
 
-	// ошибка в Produce
+	// Ошибка в Produce
 	mockProd.On("Produce").Return(nil, errors.New("file not found"))
 	srv := NewService(mockProd, mockPres)
 	err := srv.Run()
@@ -59,7 +59,7 @@ func TestService_Run_PresenterError(t *testing.T) {
 	mockProd := new(MockProducer)
 	mockPres := new(MockPresenter)
 
-	// успешный Produce, но ошибка в Present
+	// Успешный Produce, но ошибка в Present
 	mockProd.On("Produce").Return([]string{"http://example.com", "normal text"}, nil)
 	mockPres.On("Present", mock.Anything).Return(errors.New("write error"))
 	srv := NewService(mockProd, mockPres)
@@ -70,22 +70,48 @@ func TestService_Run_PresenterError(t *testing.T) {
 	mockPres.AssertCalled(t, "Present", mock.Anything)
 }
 
-// тест функции маскирования отдельно
+// Тест функции маскирования отдельно (табличным тестированием)
 func TestService_ReplaceLinks(t *testing.T) {
 	srv := &Service{}
-	input := []string{
-		"http://example.com",
-		"normal text",
-		"http://anotherlink.com/path",
-		"no link here",
-	}
-	expected := []string{
-		"http://***********",
-		"normal text",
-		"http://********************",
-		"no link here",
+
+	// Таблица тестов
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Link at start",
+			input:    "http://example.com",
+			expected: "http://***********",
+		},
+		{
+			name:     "Link in middle",
+			input:    "Visit http://example.com for details",
+			expected: "Visit http://*********** for details",
+		},
+		{
+			name:     "No link",
+			input:    "No links here",
+			expected: "No links here",
+		},
+		{
+			name:     "Multiple links",
+			input:    "http://example.com and http://test.com",
+			expected: "http://*********** and http://********",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
 	}
 
-	output := srv.replaceLinks(input)
-	require.Equal(t, expected, output)
+	// Запуск тестов
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := srv.replaceLinks(tt.input)
+			require.Equal(t, tt.expected, output, "replaceLinks should return correct masked string")
+		})
+	}
 }

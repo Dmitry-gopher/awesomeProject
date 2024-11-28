@@ -5,9 +5,6 @@ import (
 	"os"
 )
 
-type Producer interface {
-	Produce() ([]string, error)
-}
 type FileProducer struct {
 	filePath string
 }

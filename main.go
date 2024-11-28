@@ -7,22 +7,16 @@ import (
 )
 
 func main() {
-	args := os.Args[1:] // получение аргументов из терминала
-	inputFile := args[0]
-	outputFile := "output.txt" // значение по умолчанию
+	// Создаём экземпляры Producer и Presenter
+	producer := service.NewFileProducer("input.txt")
+	presenter := service.NewFilePresenter("output.txt")
+	srv := service.NewService(producer, presenter)
 
-	if len(args) > 1 {
-		outputFile = args[1]
+	// Запуск сервиса
+	if err := srv.Run(); err != nil {
+		fmt.Printf("Ошибка при запуске сервиса: %v\n", err)
+		os.Exit(1) // Завершаем программу с кодом ошибки
 	}
 
-	producer := service.NewFileProducer(inputFile)
-	presenter := service.NewFilePresenter(outputFile)
-	service := service.NewService(producer, presenter)
-
-	if err := service.Run(); err != nil {
-		fmt.Println("Ошибка:", err)
-		return
-	}
-
-	fmt.Println("Данные успешно обработаны")
+	fmt.Println("Данные успешно обработаны!")
 }
