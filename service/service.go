@@ -1,7 +1,8 @@
 package service
 
 import (
-	"errors"
+	"fmt"
+	"sync"
 )
 
 type Producer interface {
@@ -43,25 +44,59 @@ func (s *Service) replaceLinks(data string) string {
 
 // Запуск сервиса
 func (s *Service) Run() error {
-	data, err := s.prod.Produce()
+
+	sem := make(chan struct{}, 10) // Создание семафора для ограничения количества горутин
+
+	inputChan := make(chan string)
+	outputChan := make(chan string)
+
+	var wg sync.WaitGroup
+
+	go func() {
+		defer close(inputChan)
+		lines, err := s.prod.Produce()
+		if err != nil {
+			fmt.Println("Error reading lines:", err)
+			return
+		}
+		for _, line := range lines {
+			inputChan <- line
+		}
+	}()
+
+	// Запуск основных горутин
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for line := range inputChan {
+				sem <- struct{}{}
+				go func(line string) {
+					defer func() { <-sem }()
+					maskedLine := s.replaceLinks(line)
+					outputChan <- maskedLine
+				}(line)
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(outputChan)
+	}()
+
+	var results []string
+	go func() {
+		for maskedLine := range outputChan {
+			results = append(results, maskedLine)
+		}
+	}()
+
+	wg.Wait()
+
+	err := s.pres.Present(results)
 	if err != nil {
-		return errors.New("Producer error: " + err.Error())
-	}
-
-	if data == nil || len(data) == 0 { // Если данных нет, обрабатываем как пустой ввод
-		data = []string{""} // Добавляем пустую строку для обработки
-	}
-
-	// Маскировка ссылок
-	var maskedData []string
-	for _, line := range data {
-		maskedData = append(maskedData, s.replaceLinks(line))
-	}
-
-	// Передача замаскированных данных Presenter'у
-	err = s.pres.Present(maskedData)
-	if err != nil {
-		return errors.New("Presenter error: " + err.Error())
+		return err
 	}
 
 	return nil
