@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"sync"
 )
 
 type Producer interface {
@@ -45,59 +44,46 @@ func (s *Service) replaceLinks(data string) string {
 // Запуск сервиса
 func (s *Service) Run() error {
 
-	sem := make(chan struct{}, 10) // Создание семафора для ограничения количества горутин
+	lines, err := s.prod.Produce()
+	if err != nil {
+		fmt.Println("Error reading lines:", err)
+	}
 
+	sem := make(chan struct{}, 10) // Создание семафора для ограничения количества горутин
+	done := make(chan struct{})    // Синхронизация завершения всех горутин
 	inputChan := make(chan string)
 	outputChan := make(chan string)
 
-	var wg sync.WaitGroup
+	// Запуск горутины для сбора результатов
+	go func() {
+		results := make([]string, len(lines))
+		for i := 0; i < len(lines); i++ {
+			results[i] = <-outputChan
+		}
+		_ = s.pres.Present(results)
+		close(done)
+	}()
 
+	// Отправление данных в канал для обработки
 	go func() {
 		defer close(inputChan)
-		lines, err := s.prod.Produce()
-		if err != nil {
-			fmt.Println("Error reading lines:", err)
-			return
-		}
 		for _, line := range lines {
 			inputChan <- line
 		}
 	}()
 
-	// Запуск основных горутин
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for line := range inputChan {
-				sem <- struct{}{}
-				go func(line string) {
-					defer func() { <-sem }()
-					maskedLine := s.replaceLinks(line)
-					outputChan <- maskedLine
-				}(line)
-			}
-		}()
+	// Обработка строк
+	for line := range inputChan {
+		sem <- struct{}{}
+		go func(l string) {
+			defer func() { <-sem }()
+			maskedLine := s.replaceLinks(l)
+			outputChan <- maskedLine
+		}(line)
 	}
 
-	go func() {
-		wg.Wait()
-		close(outputChan)
-	}()
-
-	var results []string
-	go func() {
-		for maskedLine := range outputChan {
-			results = append(results, maskedLine)
-		}
-	}()
-
-	wg.Wait()
-
-	err := s.pres.Present(results)
-	if err != nil {
-		return err
-	}
+	// Ожидание завершения всех горутин
+	<-done
 
 	return nil
 }
